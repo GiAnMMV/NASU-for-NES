@@ -51,7 +51,10 @@ special:            .dsb 1
 seed:               .dsb 2
 nasu_status:        .dsb 1
 pnasu_status:       .dsb 1
+other_flags:        .dsb 1
 score:              .dsb 3
+t1:                 .dsb 1
+t2:                 .dsb 1
 .ende
 
 .enum $6000
@@ -102,6 +105,7 @@ reset:
    STA special
    STA player_status
    STA pnasu_status
+   STA other_flags
    JSR famistudio_music_play
 
    LDX #$00
@@ -119,7 +123,7 @@ reset:
    STA oam, X
    INX
    TXA
-   CMP #$44
+   CMP #(4*21)
    BNE -
 
    LDA #$88
@@ -177,6 +181,12 @@ main_menu:
     LDA #>main_menu_2
     STA main_addr+1
     JMP (main_addr)
+
+    LDA seed
+    BNE + 
+    LDA seed+1
+    BNE +
+     INC seed+1
 
 +  LDX special
    CPX #$08
@@ -257,6 +267,28 @@ main_game_init:
     STA drawingbuf+6
     STA drawingbuf+7
     INC needdraw
+    
+    JMP main_game
+
+main_game_bonus:
+   DEC timer
+   BNE main_game
+    LDA #<main_game
+    STA main_addr
+    LDA #>main_game
+    STA main_addr+1
+
+    LDA #$FF
+    STA $22C
+    STA $230
+    STA $234
+    STA $238
+    STA $23C
+    STA $240
+    STA $244
+    STA $248
+    STA $24C
+    STA $250
 
 main_game:
    JSR WaitFrame
@@ -347,6 +379,9 @@ main_game:
     LDA gamepad
     AND #PAD_R
     BEQ ++
+    LDA $214+4+3
+    CMP #$F0
+    BEQ ++
      LDX #$00
  -   INC $217, X
      INX
@@ -358,6 +393,8 @@ main_game:
 
 ++  LDA gamepad
     AND #PAD_L
+    BEQ ++
+    LDA $214+3
     BEQ ++
      LDX #$00
  -   DEC $217, X
@@ -378,6 +415,15 @@ main_game:
 
      LDA #$00
      JSR LoadSprite
+
+     LDA other_flags
+     AND #%10111111
+     STA other_flags
+
+     LDA #$05
+     LDX #FAMISTUDIO_SFX_CH1
+     JSR famistudio_sfx_play
+
 
 +   LDA player_status
     AND #%01000000
@@ -403,36 +449,40 @@ main_game:
       LDA #$05
       LDX #FAMISTUDIO_SFX_CH1
       JSR famistudio_sfx_play
+
   ++ LDA player_status
      AND #%10000000
      BEQ +++
-      LDX #$00
-  -   INC $214+3, X
-      INX
-      INX
-      INX
-      INX
-      CPX #$18
-      BNE -
-
-      LDA gamepad
-      AND #PAD_R
+      LDA $214+4+3
+      CMP #$F0
       BEQ ++++
+       LDX #$00
+   -   INC $214+3, X
+       INX
+       INX
+       INX
+       INX
+       CPX #$18
+       BNE -
+ ++++ LDA gamepad
+      AND #PAD_R
+      BEQ +++++
      JMP ++
-  +++ LDX #$00
-  -   DEC $214+3, X
-      INX
-      INX
-      INX
-      INX
-      CPX #$18
-      BNE -
-
-      LDA gamepad
+  +++ LDA $214+3
+      BEQ ++++
+       LDX #$00
+   -   DEC $214+3, X
+       INX
+       INX
+       INX
+       INX
+       CPX #$18
+       BNE -
+ ++++ LDA gamepad
       AND #PAD_L
       BNE ++
 
-  ++++ LDA player_status
+ +++++ LDA player_status
        AND #%10000000
        STA player_status
        
@@ -473,7 +523,7 @@ main_game:
    DEY
    DEY
    CPY $200
-   BCC +
+   l_BCC +
    DEY
    DEY
    DEY
@@ -482,62 +532,84 @@ main_game:
    DEY
    DEY
    CPY $200
-   BCS +
+   l_BCS +
     LDA #$FF
     STA $200
     
     JSR prng
-    CLC
-    LDA seed+1
-    ROL
-    TAX
     LDA seed
-    ROL
+    STA $200+3
+    TAX
+    LDA seed+1
+    STA t1
     TAY
     LDA #$00
-    ROL
+    STA t2
     PHA
-    TXA
-    ROL
-    TAX
+    .rept 3
     TYA
-    ROL
+    ASL A
     TAY
-    PLA
-    ROL
-    PHA
     TXA
-    ROL
+    ROL A
     TAX
-    TYA
-    ROL
-    TAY
     PLA
-    ROL
+    ROL A
     PHA
-    SEC
-    TXA
-    EOR #$FF
-    ADC #$00
+    .endr
     TYA
-    EOR #$FF
-    ADC seed+1
+    ADC t2
+    STA t2
+    TXA
+    ADC t1
+    STA t1
     PLA
-    EOR #$FF
-    ADC seed
+    PHA
+    ADC $200+3
     STA $200+3
+    .rept 2
+    TYA
+    ASL A
+    TAY
+    TXA
+    ROL A
+    TAX
+    PLA
+    ROL A
+    PHA
+    .endr
+    SEC
+    TYA
+    EOR #$FF
+    ADC t2
+    STA t2
+    TXA
+    EOR #$FF
+    ADC t1
+    STA t1
+    PLA
+    EOR #$FF
+    ADC $200+3
+    STA $200+3
+    .rept 8
+    INC $200+3
+    .endr
+    LDA t1
+    BPL ++
+     INC $200+3
     
- ;   JSR prng
- ;   LDA #>($10000/50)
- ;   CMP seed
- ;   BCC ++
- ;    LDA #<($10000/50)
- ;    CMP seed+1
- ;    BCC ++
-      LDA pnasu_status
-      BNE ++
-       LDA #%10000000
-       STA pnasu_status
+ ++ LDA special
+    BNE +++
+    JSR prng
+    SEC
+    LDA #<($10000/50)
+    SBC seed+1
+    LDA #>($10000/50)
+    SBC seed
+    BCC ++
+ +++ LDA other_flags
+     ORA #%10000000
+     STA other_flags
     
  ++ LDX #0
     LDA #1
@@ -562,10 +634,8 @@ main_game:
     LDA #$214
     SBC #$0A
     STA #$208
-    
-    LDA #$00
-    LDX #FAMISTUDIO_SFX_CH0
-    JSR famistudio_sfx_play
+
+    JSR get_nasu
     
 +  LDA nasu_status
    BNE ++
@@ -573,15 +643,13 @@ main_game:
    JMP +
  ++ CMP #$20
     BNE ++
-     LDA start_oam+8+3
-     STA $208+3
-     LDA start_oam+8
+     LDA #$FF
      STA $208
  ++ DEC nasu_status
 
 +  LDX pnasu_status
-   BEQ ++
-    BMI +++
+   BEQ +++
+    BMI ++++
      CLC
      LDA Mov_PinkNasuX-1, X
      ADC $207
@@ -593,16 +661,37 @@ main_game:
      INC pnasu_status
      LDA pnasu_status
      CMP #$33
-     BNE ++
+     BNE +++++
       LDA #$01
       STA pnasu_status
++++++
+     LDA $204+3
+     CMP #$FF
+     l_BEQ ++++++
     JMP ++
- +++ CPX #$30+%10000000
-     BEQ +++
-      INC pnasu_status
+++++ CPX #$30+%10000000
+     BEQ ++++
+      CPX #$60+%10000000
+      BEQ +++++
+       INC pnasu_status
+      JMP ++
+ +++++ LDA #$00
+       STA pnasu_status
+
+       LDA #$FF
+       STA $20C
+       STA $210
      JMP ++
-  +++ LDA #$01
+ ++++ LDA #$01
       STA pnasu_status
+   JMP ++
++++ LDA other_flags
+    BPL ++
+     EOR #%10000000
+     STA other_flags
+     LDA #%10000000
+     STA pnasu_status
+
  ++ LDA player_status
     AND #%00100000
     BEQ +
@@ -640,14 +729,6 @@ main_game:
      LDX #0
      LDA #30
      JSR score_add
-     
-     LDA start_oam+4
-     STA $204
-     LDA start_oam+7
-     STA $207
-
-     LDA #$00
-     STA pnasu_status
 
      LDA player_status
      AND #%10000000
@@ -669,36 +750,36 @@ main_game:
      STA #$20C
      STA #$210
 
-     LDA #$00
-     LDX #FAMISTUDIO_SFX_CH0
-     JSR famistudio_sfx_play
+     JSR get_nasu 
+++++++
+     LDA start_oam+4
+     STA $204
+     LDA start_oam+7
+     STA $207
+
+     LDA #$40+%10000000
+     STA pnasu_status
 
 +  LDA $200
-   CMP #$97
+   CMP #$99
    BNE +
     LDA #<main_lost_1
     STA main_addr
     LDA #>main_lost_1
     STA main_addr+1
     
-    LDA score
-    CMP hi_score
-    BCC ++
-     BNE +++
-      LDA score+1
-      CMP hi_score+1
-      BCC ++
-       BNE ++++
-        LDA score+2
-        CMP hi_score+2
-        BCC ++
-         BNE +++++
-+++ LDA score
-    STA hi_score
-++++ LDA score+1
+    SEC
+    LDA hi_score+1
+    SBC score+1
+    LDA hi_score
+    SBC score
+    BCS ++
+    LDA special
+    BNE ++
+     LDA score
+     STA hi_score
+     LDA score+1
      STA hi_score+1
-+++++ LDA score+2
-      STA hi_score+2
     
  ++ JSR famistudio_music_stop
     LDA #$03
@@ -1118,6 +1199,45 @@ hiscore_update:
    LDA #$01
    STA needdraw
    RTS
+
+get_nasu:
+   LDA other_flags
+   EOR #%01000000
+   STA other_flags
+   AND #%01000000
+   BEQ ++
+    LDA #$00
+    LDX #FAMISTUDIO_SFX_CH0
+    JSR famistudio_sfx_play
+   JMP +
+ ++ LDA #$01
+    LDX #FAMISTUDIO_SFX_CH0
+    JSR famistudio_sfx_play
+
+    LDX #1
+    LDA #0
+    JSR score_add
+
+    LDA #$6B
+    STA $22C
+    STA $230
+    STA $234
+    STA $238
+    STA $23C
+    LDA #$6B+8
+    STA $240
+    STA $244
+    STA $248
+    STA $24C
+    STA $250
+
+    LDA #$60
+    STA timer
+    LDA #<main_game_bonus
+    STA main_addr
+    LDA #>main_game_bonus
+    STA main_addr+1
++  RTS
 
 map_title:
 .incbin map_title.bin
