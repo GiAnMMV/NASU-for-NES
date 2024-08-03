@@ -336,10 +336,10 @@ main_game:
 
 
 +  LDA lastframe_gamepad
-   AND #PAD_A
+   AND #PAD_A + PAD_B
    BNE +
    LDA gamepad
-   AND #PAD_A
+   AND #PAD_A + PAD_B
    BEQ +
    LDA player_status
    AND #%00100000
