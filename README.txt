@@ -1,6 +1,7 @@
 ===NASU for NES===
 Original game "Yume Nikki" by KikiYama.
 Fan port by GiAnMMV.
+Project link: https://github.com/GiAnMMV/NASU-for-NES/
 
 ==ROM details.
 Database match: not found
