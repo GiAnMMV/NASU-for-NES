@@ -113,7 +113,7 @@ reset:
    STA drawingbuf, X
    INX
    TXA
-   CMP #$23
+   CMP #$24
    BNE -
    LDA #$01
    STA needdraw
@@ -266,6 +266,8 @@ main_game_init:
     STA drawingbuf+5
     STA drawingbuf+6
     STA drawingbuf+7
+    LDA #$FF
+    STA drawingbuf+8
     INC needdraw
     
     JMP main_game
@@ -769,6 +771,8 @@ main_game:
     STA main_addr+1
     
     SEC
+    LDA hi_score+2
+    SBC score+2
     LDA hi_score+1
     SBC score+1
     LDA hi_score
@@ -776,10 +780,19 @@ main_game:
     BCS ++
     LDA special
     BNE ++
+     LDX #$00
+   - TXA
+     ASL
+     ASL
+     TAY
      LDA score
-     STA hi_score
+     STA hi_score, Y
      LDA score+1
-     STA hi_score+1
+     STA hi_score+1, Y
+     LDA score+2
+     STA hi_score+2, Y
+     INX
+     BNE -
     
  ++ JSR famistudio_music_stop
     LDA #$03
@@ -795,6 +808,8 @@ main_game:
     STA drawingbuf+1
     LDA #$0D
     STA drawingbuf+2
+    LDA #$FF
+    STA drawingbuf+7
 +  JMP (main_addr)
 
 main_lost_1:
@@ -841,23 +856,19 @@ main_lost_1:
 main_lost_2:
    DEC timer
    BNE +
-    LDA #$3F
-    STA drawingbuf+1
-    STA drawingbuf+3
-    LDA #$10
-    STA drawingbuf+2
-    LDA #$01
-    STA drawingbuf
-    STA needdraw
- 
     LDA #$0A
     STA soft2001
     LDA #$00
     STA needdma
     
-    LDA #<written_LOST
-    LDX #>written_LOST
-    JSR BlackScreen
+    LDX #written_LOST_end - written_LOST
+ -  DEX
+    LDA written_LOST, X
+    STA drawingbuf, X
+    CPX #$00
+    BNE -
+    LDA #$01
+    STA needdraw
     
     LDA #$02
     JSR famistudio_music_play
@@ -911,41 +922,47 @@ nmi:
 
    LDA needdma
    BEQ +
-   LDX #$00
-   STX $2003
-   LDA #>oam
-   STA $4014
+    LDX #$00
+    STX $2003
+    LDA #>oam
+    STA $4014
 
 +  LDA needdraw
    BEQ +
-   BIT $2002
+    BIT $2002
 
-   LDX #$00
-   LDA drawingbuf+1
-   STA $2006
-   LDA drawingbuf+2
-   STA $2006
--  LDA drawingbuf+3, X
-   STA $2007
-   INX
-   TXA
-   CMP drawingbuf
-   BNE -
-   DEC needdraw
-   INC needppureg
+    LDY #$00
+ -  LDX drawingbuf, Y
+    CPX #$FF
+    BEQ ++
+     INY
+     LDA drawingbuf, Y
+     STA $2006
+     INY
+     LDA drawingbuf, Y
+     STA $2006
+     INY
+  -- LDA drawingbuf, Y
+     STA $2007
+     INY
+     DEX
+     BNE --
+     BEQ -
+ ++ DEC needdraw
+    INC needppureg
 
 +  LDA needppureg
    BEQ +
-   LDA soft2001
-   STA $2001
-   LDA soft2000
-   STA $2000
-   BIT $2002
-   LDA #$00
-   STA $2005
-   LDA #$00
-   STA $2005
-   STA needppureg
+    LDA soft2001
+    STA $2001
+    LDA soft2000
+    STA $2000
+    BIT $2002
+    LDA #$00
+    STA $2005
+    LDA #$00
+    STA $2005
+    STA needppureg
 
 +  JSR famistudio_update
    JSR ReadJoy
@@ -1156,6 +1173,8 @@ score_add: ;score + XA
    BEQ +
     LDX #$39
 +  STX drawingbuf+7
+   LDA #$FF
+   STA drawingbuf+8
    LDA #$01
    STA needdraw
    RTS
@@ -1196,6 +1215,8 @@ hiscore_update:
    BEQ +
     LDX #$39
 +  STX drawingbuf+7
+   LDA #$FF
+   STA drawingbuf+8
    LDA #$01
    STA needdraw
    RTS
@@ -1245,17 +1266,38 @@ map_game:
 .incbin map_game.bin
 
 written_READY:
-.hex 05 21 AE
-.db "READY"
+   .db @end-@beg, $21, ($20-@end+@beg+1)/2 + $A0
+   @beg
+    .db "READY"
+   @end
 
 written_LOST:
-.hex 09 21 AC
-.db "GAME OVER"
+   @len1 = @end1 - @beg1
+   .db @len1, $21, ($20-@len1+1)/2 + $A0
+   @beg1
+    .db "GAME OVER"
+   @end1
+
+   @len2 = 16
+   .db @len2, $3F, $00
+   rept @len2/4
+    .db $3F, $3F, $3F, $30
+   endr
+
+   @len3 = 5
+   .db @len3, $23, $74
+   rept @len3
+    .db $01
+   endr
+
+   .db $FF
+written_LOST_end:
 
 palettes:
 .hex 20 3F 00
 .hex 3F 3F 3F 30 3F 14 23 33 3F 0A 0A 30 3F 06 16 3F
 .hex 3F 16 06 26 3F 04 05 14 3F 15 06 25 3F 3F 3F 30
+.hex FF
 
 start_oam:
 .hex FF 18 01 84  97 18 02 FF  FF 1A 03 00  FF 1C 03 00
