@@ -15,6 +15,7 @@ This ROM should be played in NTSC mode.
 
 ==History.
 v1.0  - 29 jul 2024
+v1.0a - 31 jan 2025: Minor fixes during transitions.
 
 ==Tools used.
 - "ASM6" (v1.6) by loopy
