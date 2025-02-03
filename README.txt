@@ -16,6 +16,7 @@ This ROM should be played in NTSC mode.
 ==History.
 v1.0  - 29 jul 2024
 v1.0a - 31 jan 2025: Minor fixes during transitions.
+v1.0b - 03 feb 2025: Fixed jump SFX and added more time between a new eggplant falls.
 
 ==Tools used.
 - "ASM6" (v1.6) by loopy
