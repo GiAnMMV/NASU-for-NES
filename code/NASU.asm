@@ -204,7 +204,7 @@ main_menu:
      CPX #$07
      BNE +
       LDA #$03
-      LDX #FAMISTUDIO_SFX_CH0
+      LDX #FAMISTUDIO_SFX_CH1
       JSR famistudio_sfx_play
       
       LDA #%10000000
@@ -617,7 +617,7 @@ main_game:
     LDA #1
     JSR score_add
     
-    LDA #$40
+    LDA #$60
     STA nasu_status
 
     LDA player_status
@@ -771,6 +771,8 @@ main_game:
     STA main_addr+1
     
     SEC
+    LDA special
+    BNE ++
     LDA hi_score+2
     SBC score+2
     LDA hi_score+1
@@ -778,8 +780,6 @@ main_game:
     LDA hi_score
     SBC score
     BCS ++
-    LDA special
-    BNE ++
      LDX #$00
    - TXA
      ASL
@@ -796,7 +796,7 @@ main_game:
     
  ++ JSR famistudio_music_stop
     LDA #$03
-    LDX #FAMISTUDIO_SFX_CH0
+    LDX #FAMISTUDIO_SFX_CH1
     JSR famistudio_sfx_play
     
     LDA #$A0
@@ -1228,11 +1228,11 @@ get_nasu:
    AND #%01000000
    BEQ ++
     LDA #$00
-    LDX #FAMISTUDIO_SFX_CH0
+    LDX #FAMISTUDIO_SFX_CH1
     JSR famistudio_sfx_play
    JMP +
  ++ LDA #$01
-    LDX #FAMISTUDIO_SFX_CH0
+    LDX #FAMISTUDIO_SFX_CH1
     JSR famistudio_sfx_play
 
     LDX #1
